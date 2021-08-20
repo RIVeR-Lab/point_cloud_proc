@@ -126,6 +126,11 @@ public:
 
     pcl::PointIndices::Ptr getTabletopIndicies();
 
+    bool removePlane(CloudT &segmented_point_cloud, char axis = 'z');
+
+    bool filterPointCloudWithLimits(std::vector<float> set_limits, const CloudT::Ptr input_cloud, CloudT output_cloud);
+
+    
 
 private:
     pcl::PassThrough<PointT> pass_;

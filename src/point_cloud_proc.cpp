@@ -1023,3 +1023,94 @@ sensor_msgs::PointCloud2::Ptr PointCloudProc::getFilteredCloud() {
 pcl::PointIndices::Ptr PointCloudProc::getTabletopIndicies() {
     return tabletop_indicies_;
 }
+
+
+bool PointCloudProc::removePlane(pcl::PointCloud<pcl::PointXYZRGB> &segmented_point_cloud, char axis) {
+    // boost::mutex::scoped_lock lock(pc_mutex_);
+    std::cout << "PCP: segmenting single plane..." << std::endl;
+
+    if (!transformPointCloud()) {
+        std::cout << "PCP: couldn't transform point cloud!" << std::endl;
+        return false;
+    }
+
+    if (!filterPointCloud()) {
+        std::cout << "PCP: couldn't filter point cloud!" << std::endl;
+        return false;
+    }
+
+
+    CloudT::Ptr cloud_plane(new CloudT);
+    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
+    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
+
+    Eigen::Vector3f axis_vector = Eigen::Vector3f(0.0, 0.0, 0.0);
+
+    if (axis == 'x') {
+        axis_vector[0] = 1.0;
+    } else if (axis == 'y') {
+        axis_vector[1] = 1.0;
+    } else if (axis == 'z') {
+        axis_vector[2] = 1.0;
+    }
+
+    seg_.setOptimizeCoefficients(true);
+    seg_.setMaxIterations(max_iter_);
+//    seg_.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+    seg_.setModelType(pcl::SACMODEL_PLANE);
+    seg_.setMethodType(pcl::SAC_RANSAC);
+//    seg_.setAxis(axis_vector);
+//    seg_.setEpsAngle(eps_angle_ * (M_PI / 180.0f));
+    seg_.setDistanceThreshold(single_dist_thresh_);
+    seg_.setInputCloud(cloud_filtered_);
+    seg_.segment(*inliers, *coefficients);
+
+
+    if (inliers->indices.size() == 0) {
+        std::cout << "PCP: plane is empty!" << std::endl;
+        return false;
+    }
+
+    extract_.setInputCloud(cloud_filtered_); // After extractions, cloud_filtered should be all objects on the plane
+    extract_.setNegative(false); // Try changing this to true to get the inliers
+    extract_.setIndices(inliers);
+    extract_.filter(*cloud_plane);
+
+    segmented_point_cloud = *cloud_filtered_;
+    debug_cloud_pub_.publish(segmented_point_cloud);
+
+    return true;
+
+}
+
+
+bool PointCloudProc::filterPointCloudWithLimits(std::vector<float> set_limits,
+                                                CloudT::Ptr input_cloud,
+                                                CloudT output_cloud) {
+
+    // Remove part of the scene to leave table and objects alone
+
+    pass_.setInputCloud(input_cloud);
+    pass_.setFilterFieldName("x");
+    pass_.setFilterLimits(set_limits[0], set_limits[1]);
+    pass_.filter(*cloud_filtered_);
+    pass_.setInputCloud(cloud_filtered_);
+    pass_.setFilterFieldName("y");
+    pass_.setFilterLimits(set_limits[2], set_limits[3]);
+    pass_.filter(*cloud_filtered_);
+    std::cout << "PCP: point cloud is filtered!" << std::endl;
+    if (cloud_filtered_->points.size() == 0) {
+        std::cout << "PCP: point cloud is empty after filtering!" << std::endl;
+        return false;
+    }
+
+    // Downsample point cloud
+    vg_.setInputCloud (cloud_filtered_);
+    vg_.setLeafSize (leaf_size_, leaf_size_, leaf_size_);
+    vg_.filter (*cloud_filtered_);
+
+    output_cloud = *cloud_filtered_;
+    debug_cloud_pub_.publish(output_cloud);
+
+    return true;
+}
