@@ -1078,7 +1078,7 @@ bool PointCloudProc::removePlane(pcl::PointCloud<pcl::PointXYZRGB> &segmented_po
     }
 
     extract_.setInputCloud(cloud_filtered_); // After extractions, cloud_filtered should be all objects on the plane
-    extract_.setNegative(false); // Try changing this to true to get the inliers
+    extract_.setNegative(true); // Try changing this to true to get the inliers
     extract_.setIndices(inliers);
     extract_.filter(*cloud_plane);
 
@@ -1104,6 +1104,11 @@ bool PointCloudProc::filterPointCloudWithLimits(std::vector<float> set_limits,
     pass_.setFilterFieldName("y");
     pass_.setFilterLimits(set_limits[2], set_limits[3]);
     pass_.filter(*cloud_filtered_);
+    pass_.setInputCloud(cloud_filtered_);
+    pass_.setFilterFieldName("z");
+    pass_.setFilterLimits(set_limits[4], set_limits[5]);
+    pass_.filter(*cloud_filtered_);
+
     std::cout << "PCP: point cloud is filtered!" << std::endl;
     if (cloud_filtered_->points.size() == 0) {
         std::cout << "PCP: point cloud is empty after filtering!" << std::endl;
@@ -1119,4 +1124,71 @@ bool PointCloudProc::filterPointCloudWithLimits(std::vector<float> set_limits,
     debug_cloud_pub_.publish(output_cloud);
 
     return true;
+}
+
+
+
+bool PointCloudProc::findDropSpot()
+{
+    // Need to define:aaaaaa
+    // TRAY_LEFT, TRAY_RIGHT, TRAY_CENTER
+    // TRAY_BACK, TRAY_FRONT, PLACE_OFFSET
+    float TRAY_LEFT = 0.12, TRAY_RIGHT = -0.13, TRAY_CENTER = 0;
+    float TRAY_BACK = 1.25, TRAY_FRONT = 0.8, PLACE_OFFSET = 0.1;
+    float TRAY_BOTTOM = 0.75, TRAY_TOP = 1.2;
+    float FIXED_HEIGHT = 0.15;
+    // std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_LEFT, TRAY_RIGHT};
+    // std::vector<float> LEFT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_LEFT, TRAY_CENTER};
+    // std::vector<float> RIGHT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_CENTER, TRAY_RIGHT};
+    std::vector<float> TRAY_LIMITS{0.8, 1.25, -0.13, 0.12, 0, 1};//, 0.75, 1};
+
+    // Have the main point cloud segment out planes and limit data to the tray dimensions
+    CloudT::Ptr segmented_point_cloud;
+    if (!removePlane(*segmented_point_cloud))
+        return false;
+    if (!filterPointCloudWithLimits(TRAY_LIMITS, segmented_point_cloud, *segmented_point_cloud))
+        return false;
+
+
+    // check if there is any space remaining on the left side
+    CloudT::Ptr left_side;
+    // filterPointCloudWithLimits(LEFT_SECTION, segmented_point_cloud, *left_side);
+    
+    int min_x = getMinX(*left_side);
+    // if (min_xx > TRAY_FRONT + PLACE_OFFSET)
+    //     // publish the x y and z of the drop off point
+    //     // return true;
+    // // otherwise, continue onto the right side
+
+
+
+    // CloudT::Ptr right_side;
+    // // filterPointCloudWithLimits(RIGHT_SECTION, segmented_point_cloud, *right_side);
+    // minPt, maxPt;
+    // pcl::getMinMax3D (*right_side, minPt, maxPt);
+
+    // if (minPt.x > TRAY_FRONT + PLACE_OFFSET)
+    //     // publish the x y and z of the drop off point
+    //     // return true;
+
+
+    return false;
+}
+
+
+int PointCloudProc::getMinX(CloudT cloud)
+{
+    float min_x = 100.;
+    for (int i = 0; i < cloud.points.size(); i++)
+    {
+        min_x = std::min(min_x, cloud.points[i].x);
+    }
+
+    return min_x;
+}
+
+PointCloudProc::CloudT::Ptr PointCloudProc::getCloud()
+{
+    transformPointCloud();
+    return cloud_transformed_;
 }

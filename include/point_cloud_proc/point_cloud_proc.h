@@ -75,11 +75,12 @@ enum AXIS {
 class PointCloudProc {
     typedef pcl::PointXYZRGB PointT;
     typedef pcl::Normal PointNT;
-    typedef pcl::PointCloud<PointT> CloudT;
     typedef pcl::PointCloud<PointNT> CloudNT;
 
 
 public:
+    typedef pcl::PointCloud<PointT> CloudT;
+
     PointCloudProc(ros::NodeHandle n, bool debug = false, std::string config = "");
 
     void pointCloudCb(const sensor_msgs::PointCloud2ConstPtr &msg);
@@ -130,7 +131,12 @@ public:
 
     bool filterPointCloudWithLimits(std::vector<float> set_limits, const CloudT::Ptr input_cloud, CloudT output_cloud);
 
-    
+    bool findDropSpot();
+
+    int getMinX(CloudT cloud);
+
+    CloudT::Ptr getCloud();
+
 
 private:
     pcl::PassThrough<PointT> pass_;
