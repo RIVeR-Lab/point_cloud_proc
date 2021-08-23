@@ -16,6 +16,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/Point.h>
 #include <pcl_msgs/PolygonMesh.h>
 #include <point_cloud_proc/Mesh.h>
 #include <point_cloud_proc/Plane.h>
@@ -129,11 +130,11 @@ public:
 
     bool removePlane(CloudT &segmented_point_cloud, char axis = 'z');
 
-    bool filterPointCloudWithLimits(std::vector<float> set_limits, const CloudT::Ptr input_cloud, CloudT output_cloud);
+    bool filterPointCloudWithLimits(std::vector<float> set_limits, const CloudT::Ptr input_cloud, CloudT::Ptr output_cloud);
 
-    bool findDropSpot();
+    bool findDropSpot(ros::Publisher drop_spot_pub);
 
-    int getMinX(CloudT cloud);
+    float getMinX(CloudT cloud);
 
     CloudT::Ptr getCloud();
 

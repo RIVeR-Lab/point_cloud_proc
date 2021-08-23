@@ -1080,7 +1080,7 @@ bool PointCloudProc::removePlane(pcl::PointCloud<pcl::PointXYZRGB> &segmented_po
     extract_.setInputCloud(cloud_filtered_); // After extractions, cloud_filtered should be all objects on the plane
     extract_.setNegative(true); // Try changing this to true to get the inliers
     extract_.setIndices(inliers);
-    extract_.filter(*cloud_plane);
+    extract_.filter(*cloud_filtered_);
 
     segmented_point_cloud = *cloud_filtered_;
     debug_cloud_pub_.publish(segmented_point_cloud);
@@ -1092,98 +1092,128 @@ bool PointCloudProc::removePlane(pcl::PointCloud<pcl::PointXYZRGB> &segmented_po
 
 bool PointCloudProc::filterPointCloudWithLimits(std::vector<float> set_limits,
                                                 CloudT::Ptr input_cloud,
-                                                CloudT output_cloud) {
+                                                CloudT::Ptr output_cloud) {
 
     // Remove part of the scene to leave table and objects alone
-
     pass_.setInputCloud(input_cloud);
     pass_.setFilterFieldName("x");
     pass_.setFilterLimits(set_limits[0], set_limits[1]);
-    pass_.filter(*cloud_filtered_);
-    pass_.setInputCloud(cloud_filtered_);
+    pass_.filter(*output_cloud);
+    
+    pass_.setInputCloud(output_cloud);
     pass_.setFilterFieldName("y");
     pass_.setFilterLimits(set_limits[2], set_limits[3]);
-    pass_.filter(*cloud_filtered_);
-    pass_.setInputCloud(cloud_filtered_);
+    pass_.filter(*output_cloud);
+    
+
+    pass_.setInputCloud(output_cloud);
     pass_.setFilterFieldName("z");
     pass_.setFilterLimits(set_limits[4], set_limits[5]);
-    pass_.filter(*cloud_filtered_);
+    pass_.filter(*output_cloud);
 
-    std::cout << "PCP: point cloud is filtered!" << std::endl;
-    if (cloud_filtered_->points.size() == 0) {
+    
+
+    if (output_cloud->points.size() == 0) {
         std::cout << "PCP: point cloud is empty after filtering!" << std::endl;
         return false;
     }
 
     // Downsample point cloud
-    vg_.setInputCloud (cloud_filtered_);
+    vg_.setInputCloud (output_cloud);
     vg_.setLeafSize (leaf_size_, leaf_size_, leaf_size_);
-    vg_.filter (*cloud_filtered_);
+    vg_.filter (*output_cloud);
 
-    output_cloud = *cloud_filtered_;
-    debug_cloud_pub_.publish(output_cloud);
+
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+    sor.setInputCloud (output_cloud);
+    sor.setMeanK (50);
+    sor.setStddevMulThresh (2.0);
+    sor.filter (*output_cloud);
+    debug_cloud_pub_.publish(*output_cloud);
 
     return true;
 }
 
 
 
-bool PointCloudProc::findDropSpot()
+bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
 {
-    // Need to define:aaaaaa
-    // TRAY_LEFT, TRAY_RIGHT, TRAY_CENTER
-    // TRAY_BACK, TRAY_FRONT, PLACE_OFFSET
-    float TRAY_LEFT = 0.12, TRAY_RIGHT = -0.13, TRAY_CENTER = 0;
+    // Make drop of spot
+    geometry_msgs::Point drop_off;
+    
+    float TRAY_LEFT = 0.15, TRAY_RIGHT = -0.15, TRAY_CENTER = 0;
     float TRAY_BACK = 1.25, TRAY_FRONT = 0.8, PLACE_OFFSET = 0.1;
-    float TRAY_BOTTOM = 0.75, TRAY_TOP = 1.2;
+    float TRAY_BOTTOM = 0.755, TRAY_TOP = 1.;
     float FIXED_HEIGHT = 0.15;
-    // std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_LEFT, TRAY_RIGHT};
-    // std::vector<float> LEFT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_LEFT, TRAY_CENTER};
-    // std::vector<float> RIGHT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_CENTER, TRAY_RIGHT};
-    std::vector<float> TRAY_LIMITS{0.8, 1.25, -0.13, 0.12, 0, 1};//, 0.75, 1};
+    std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_LEFT,  TRAY_BOTTOM, TRAY_TOP};
+    std::vector<float> LEFT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_CENTER, TRAY_LEFT, TRAY_BOTTOM, TRAY_TOP};
+    std::vector<float> RIGHT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_CENTER, TRAY_BOTTOM, TRAY_TOP};
 
-    // Have the main point cloud segment out planes and limit data to the tray dimensions
-    CloudT::Ptr segmented_point_cloud;
-    if (!removePlane(*segmented_point_cloud))
-        return false;
-    if (!filterPointCloudWithLimits(TRAY_LIMITS, segmented_point_cloud, *segmented_point_cloud))
-        return false;
-
+    // Segment point cloud to tray dimensions
+    CloudT::Ptr segmented_point_cloud = getCloud();
+    if (!filterPointCloudWithLimits(TRAY_LIMITS, segmented_point_cloud, segmented_point_cloud))
+    {
+        ROS_INFO("Tray is empty");
+        // publish the x y and z of the drop off point
+        drop_off.x = TRAY_BACK - PLACE_OFFSET;
+        drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
+        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_spot_pub.publish(drop_off);
+        ros::Duration(0.5).sleep();
+        return true;    
+    }    
 
     // check if there is any space remaining on the left side
-    CloudT::Ptr left_side;
-    // filterPointCloudWithLimits(LEFT_SECTION, segmented_point_cloud, *left_side);
+    CloudT::Ptr left_side(new CloudT);
+    filterPointCloudWithLimits(LEFT_SECTION, segmented_point_cloud, left_side);
+    ROS_INFO("Got left side point cloud");
     
-    int min_x = getMinX(*left_side);
-    // if (min_xx > TRAY_FRONT + PLACE_OFFSET)
-    //     // publish the x y and z of the drop off point
-    //     // return true;
-    // // otherwise, continue onto the right side
+    float min_x = getMinX(*left_side);
+    ROS_INFO("Min x: %f", min_x);
+    if (min_x > TRAY_FRONT + PLACE_OFFSET)
+    {
+        ROS_INFO("Found placable area");
+        // publish the x y and z of the drop off point
+        drop_off.x = min_x - PLACE_OFFSET;
+        drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
+        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_spot_pub.publish(drop_off);
+        ROS_INFO("Published");
+        ros::Duration(0.5).sleep();
+        return true;
+    }
 
 
-
-    // CloudT::Ptr right_side;
-    // // filterPointCloudWithLimits(RIGHT_SECTION, segmented_point_cloud, *right_side);
-    // minPt, maxPt;
-    // pcl::getMinMax3D (*right_side, minPt, maxPt);
-
-    // if (minPt.x > TRAY_FRONT + PLACE_OFFSET)
-    //     // publish the x y and z of the drop off point
-    //     // return true;
-
-
+    ROS_INFO("Moving onto right side");
+    // otherwise, check if there is any space on the right side
+    CloudT::Ptr right_side(new CloudT);
+    filterPointCloudWithLimits(RIGHT_SECTION, segmented_point_cloud, right_side);
+    min_x = getMinX(*right_side);
+    if (min_x > TRAY_FRONT + PLACE_OFFSET)
+    {
+        // publish the x y and z of the drop off point
+        drop_off.x = min_x - PLACE_OFFSET;
+        drop_off.y = (TRAY_RIGHT + TRAY_CENTER) / 2;
+        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_spot_pub.publish(drop_off);
+        ros::Duration(0.5).sleep();
+        return true;
+    }   
+    ROS_INFO("Did not find any placable locations");
+    // return false if neither side has space
     return false;
 }
 
 
-int PointCloudProc::getMinX(CloudT cloud)
+float PointCloudProc::getMinX(CloudT cloud)
 {
     float min_x = 100.;
-    for (int i = 0; i < cloud.points.size(); i++)
+    
+    for (auto it = cloud.points.begin(); it != cloud.points.end(); ++it)
     {
-        min_x = std::min(min_x, cloud.points[i].x);
+        min_x = std::min(min_x, it->x);
     }
-
+    
     return min_x;
 }
 
