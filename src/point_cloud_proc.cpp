@@ -1134,8 +1134,6 @@ bool PointCloudProc::filterPointCloudWithLimits(std::vector<float> set_limits,
     return true;
 }
 
-
-
 bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
 {
     // Make drop of spot
@@ -1222,3 +1220,70 @@ PointCloudProc::CloudT::Ptr PointCloudProc::getCloud()
     transformPointCloud();
     return cloud_transformed_;
 }
+
+
+
+// bool PointCloudProc::findDropSpotScaled(ros::Publisher drop_spot_pub)
+// {
+//     // Make drop of spot
+//     geometry_msgs::Point drop_off;
+//     std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_LEFT,  TRAY_BOTTOM, TRAY_TOP};
+
+//     float TRAY_LEFT = 0.15, TRAY_RIGHT = -0.15;
+//     float TRAY_BACK = 1.25, TRAY_FRONT = 0.8, PLACE_OFFSET = 0.1;
+//     float TRAY_BOTTOM = 0.755, TRAY_TOP = 1.;
+//     float FIXED_HEIGHT = 0.15;
+//     int NUM_SECTIONS = 2;
+
+//     // Segment point cloud to tray dimensions
+//     CloudT::Ptr segmented_point_cloud = getCloud();
+//     if (!filterPointCloudWithLimits(TRAY_LIMITS, segmented_point_cloud, segmented_point_cloud))
+//     {
+//         ROS_INFO("Tray is empty");
+//         // publish the x y and z of the drop off point
+//         drop_off.x = TRAY_BACK - PLACE_OFFSET;
+//         drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
+//         drop_off.z = 1 + FIXED_HEIGHT;
+//         drop_spot_pub.publish(drop_off);
+//         ros::Duration(0.5).sleep();
+//         return true;    
+//     }    
+
+
+//     float SECTION_SPACING = (TRAY_LEFT - TRAY_RIGHT)/NUM_SECTIONS
+//     for (int i = 0; i < NUM_SECTIONS, i++)
+//     {
+//         float SECTION_RIGHT = TRAY_RIGHT + (SECTION_SPACING * i);
+//         float SECTION_LEFT = SECTION_RIGHT + SECTION_SPACING;
+//         float SECTION_CENTER = (SECTION_LEFT + SECTION_RIGHT) / 2;
+
+//         std::vector<float> SECTION_LIMIT{TRAY_FRONT, TRAY_BACK,
+//                                          SECTION_LEFT, SECTION_RIGHT,
+//                                          TRAY_FRONT, TRAY_BACK};
+        
+//         // check if there is any
+//          space remaining on the left side
+//         CloudT::Ptr section(new CloudT);
+//         filterPointCloudWithLimits(SECTION_LIMITS, segmented_point_cloud, section);
+//         ROS_INFO("Got left side point cloud");
+        
+//         float min_x = getMinX(*section);
+//         ROS_INFO("Min x: %f", min_x);
+//         if (min_x > TRAY_FRONT + PLACE_OFFSET)
+//         {
+//             ROS_INFO("Found placable area");
+//             // publish the x y and z of the drop off point
+//             drop_off.x = min_x - PLACE_OFFSET;
+//             drop_off.y = SECTION_CENTER;
+//             drop_off.z = 1 + FIXED_HEIGHT;
+//             drop_spot_pub.publish(drop_off);
+//             ROS_INFO("Published");
+//             ros::Duration(0.5).sleep();
+//             return true;
+//         }
+//     }
+
+
+
+//     return false;
+// }

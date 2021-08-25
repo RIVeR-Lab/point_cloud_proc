@@ -137,6 +137,8 @@ public:
     float getMinX(CloudT cloud);
 
     CloudT::Ptr getCloud();
+  
+    // bool findDropSpotScaled(ros::Publisher drop_spot_pub);
 
 
 private:
