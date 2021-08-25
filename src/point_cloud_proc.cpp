@@ -41,11 +41,11 @@ PointCloudProc::PointCloudProc(ros::NodeHandle n, bool debug, std::string config
     point_cloud_sub_ = nh_.subscribe(point_cloud_topic_, 10, &PointCloudProc::pointCloudCb, this);
 
     if (debug_) {
-        plane_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("plane_cloud", 10);
-        debug_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 10);
-        tabletop_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("tabletop_cloud", 10);
-        object_poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("object_poses", 10);
-        point_pub_  = nh_.advertise<geometry_msgs::PointStamped>("object_points", 10);
+        plane_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("plane_cloud", 10, true);
+        debug_cloud_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 10, true);
+        tabletop_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("tabletop_cloud", 10, true);
+        object_poses_pub_ = nh_.advertise<geometry_msgs::PoseArray>("object_poses", 10, true);
+        point_pub_  = nh_.advertise<geometry_msgs::PointStamped>("object_points", 10, true);
     }
 }
 
@@ -58,6 +58,7 @@ void PointCloudProc::pointCloudCb(const sensor_msgs::PointCloud2ConstPtr &msg) {
 
 
 bool PointCloudProc::transformPointCloud() {
+    pc_received_ = false;
     while (ros::ok()){
         if(pc_received_)
             break;
@@ -176,11 +177,11 @@ bool PointCloudProc::segmentSinglePlane(point_cloud_proc::Plane &plane, char axi
 
     seg_.setOptimizeCoefficients(true);
     seg_.setMaxIterations(max_iter_);
-//    seg_.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
-    seg_.setModelType(pcl::SACMODEL_PLANE);
+    seg_.setModelType(pcl::SACMODEL_PERPENDICULAR_PLANE);
+    // seg_.setModelType(pcl::SACMODEL_PLANE);
     seg_.setMethodType(pcl::SAC_RANSAC);
-//    seg_.setAxis(axis_vector);
-//    seg_.setEpsAngle(eps_angle_ * (M_PI / 180.0f));
+    seg_.setAxis(axis_vector);
+    seg_.setEpsAngle(eps_angle_ * (M_PI / 180.0f));
     seg_.setDistanceThreshold(single_dist_thresh_);
     seg_.setInputCloud(cloud_filtered_);
     seg_.segment(*inliers, *coefficients);
@@ -1140,9 +1141,9 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
     geometry_msgs::Point drop_off;
     
     float TRAY_LEFT = 0.15, TRAY_RIGHT = -0.15, TRAY_CENTER = 0;
-    float TRAY_BACK = 1.25, TRAY_FRONT = 0.8, PLACE_OFFSET = 0.1;
+    float TRAY_BACK = 1.25, TRAY_FRONT = 0.78, PLACE_OFFSET = 0.18;
     float TRAY_BOTTOM = 0.755, TRAY_TOP = 1.;
-    float FIXED_HEIGHT = 0.15;
+    float FIXED_HEIGHT = 0.07;
     std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_LEFT,  TRAY_BOTTOM, TRAY_TOP};
     std::vector<float> LEFT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_CENTER, TRAY_LEFT, TRAY_BOTTOM, TRAY_TOP};
     std::vector<float> RIGHT_SECTION{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_CENTER, TRAY_BOTTOM, TRAY_TOP};
@@ -1192,7 +1193,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
         // publish the x y and z of the drop off point
         drop_off.x = min_x - PLACE_OFFSET;
         drop_off.y = (TRAY_RIGHT + TRAY_CENTER) / 2;
-        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_off.z = TRAY_TOP + FIXED_HEIGHT;
         drop_spot_pub.publish(drop_off);
         ros::Duration(0.5).sleep();
         return true;
