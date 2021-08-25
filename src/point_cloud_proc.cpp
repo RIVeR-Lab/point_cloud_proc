@@ -59,13 +59,14 @@ void PointCloudProc::pointCloudCb(const sensor_msgs::PointCloud2ConstPtr &msg) {
 
 bool PointCloudProc::transformPointCloud() {
     pc_received_ = false;
+    ROS_INFO("Waiting for point cloud");
     while (ros::ok()){
         if(pc_received_)
             break;
         else
             ros::Duration(0.1).sleep();
-            ROS_INFO("Waiting for point cloud");
     }
+    ROS_INFO("Received point cloud");
 
     boost::mutex::scoped_lock lock(pc_mutex_);
 
@@ -1158,7 +1159,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
         // publish the x y and z of the drop off point
         drop_off.x = TRAY_BACK - PLACE_OFFSET;
         drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
-        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_off.z = TRAY_TOP + FIXED_HEIGHT;
         drop_spot_pub.publish(drop_off);
         ros::Duration(0.5).sleep();
         return true;    
@@ -1177,7 +1178,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
         // publish the x y and z of the drop off point
         drop_off.x = min_x - PLACE_OFFSET;
         drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
-        drop_off.z = 1 + FIXED_HEIGHT;
+        drop_off.z = TRAY_TOP + FIXED_HEIGHT;
         drop_spot_pub.publish(drop_off);
         ROS_INFO("Published");
         ros::Duration(0.5).sleep();
@@ -1208,7 +1209,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
 
 float PointCloudProc::getMinX(CloudT cloud)
 {
-    float min_x = 100.;
+    float min_x = 1.25;
     
     for (auto it = cloud.points.begin(); it != cloud.points.end(); ++it)
     {
