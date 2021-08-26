@@ -1142,7 +1142,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
     geometry_msgs::Point drop_off;
     
     float TRAY_LEFT = 0.15, TRAY_RIGHT = -0.15, TRAY_CENTER = 0;
-    float TRAY_BACK = 1.25, TRAY_FRONT = 0.78, PLACE_OFFSET = 0.18;
+    float TRAY_BACK = 1.25, TRAY_FRONT = 0.78, PLACE_OFFSET = 0.12;
     float TRAY_BOTTOM = 0.755, TRAY_TOP = 1.;
     float FIXED_HEIGHT = 0.07;
     std::vector<float> TRAY_LIMITS{TRAY_FRONT, TRAY_BACK, TRAY_RIGHT, TRAY_LEFT,  TRAY_BOTTOM, TRAY_TOP};
@@ -1157,7 +1157,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
         // publish the x y and z of the drop off point
         drop_off.x = TRAY_BACK - PLACE_OFFSET;
         drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
-        drop_off.z = TRAY_TOP + FIXED_HEIGHT;
+        drop_off.z = TRAY_TOP;
         drop_spot_pub.publish(drop_off);
         ros::Duration(0.5).sleep();
         return true;    
@@ -1176,7 +1176,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
         // publish the x y and z of the drop off point
         drop_off.x = min_x - PLACE_OFFSET;
         drop_off.y = (TRAY_LEFT + TRAY_CENTER) / 2;
-        drop_off.z = TRAY_TOP + FIXED_HEIGHT;
+        drop_off.z = TRAY_TOP;
         drop_spot_pub.publish(drop_off);
         ROS_INFO("Published");
         ros::Duration(0.5).sleep();
@@ -1193,7 +1193,7 @@ bool PointCloudProc::findDropSpot(ros::Publisher drop_spot_pub)
     {
         // publish the x y and z of the drop off point
         drop_off.x = min_x - PLACE_OFFSET;
-        drop_off.y = (TRAY_RIGHT + TRAY_CENTER) / 2;
+        drop_off.y = (TRAY_RIGHT) / 2;
         drop_off.z = TRAY_TOP + FIXED_HEIGHT;
         drop_spot_pub.publish(drop_off);
         ros::Duration(0.5).sleep();
